@@ -5,7 +5,21 @@ import org.kde.kwin
 Item {
     id: root
 
+    readonly property int gridCols: 8
+    readonly property int gridRows: 6
+
     property var targetWindow: null
+    property var originalGeometry: null
+    property rect screenRect: Qt.rect(0, 0, 0, 0)
+    property real cellW: 0
+    property real cellH: 0
+
+    // Grid coordinates for target window top-left and bottom-right (exclusive).
+    // Width-in-cells = col1 - col0; height-in-cells = row1 - row0.
+    property int col0: 0
+    property int row0: 0
+    property int col1: 1
+    property int row1: 1
 
     Component.onCompleted: console.log("[grid-tiler] script loaded")
 
@@ -14,18 +28,90 @@ Item {
         text: "Grid Tiler: Open overlay"
         sequence: "Meta+Return"
         onActivated: {
-            root.targetWindow = Workspace.activeWindow;
-            console.log("[grid-tiler] Meta+Return — targetWindow=" +
-                (root.targetWindow ? root.targetWindow.resourceClass : "null"));
+            if (overlay.visible) return;
+
+            const w = Workspace.activeWindow;
+            if (!w || !w.output) {
+                console.log("[grid-tiler] no active window or output, ignoring");
+                return;
+            }
+
+            root.targetWindow = w;
+            const g = w.frameGeometry;
+            root.originalGeometry = Qt.rect(g.x, g.y, g.width, g.height);
+            root.screenRect = w.output.geometry;
+            root.cellW = root.screenRect.width / root.gridCols;
+            root.cellH = root.screenRect.height / root.gridRows;
+
+            root.snapFromGeometry(g);
+            root.applyToWindow();
+
+            console.log("[grid-tiler] open target=" + w.resourceClass +
+                " screen=" + root.screenRect.width + "x" + root.screenRect.height +
+                " cell=" + root.cellW.toFixed(1) + "x" + root.cellH.toFixed(1) +
+                " grid=(" + root.col0 + "," + root.row0 + ")-(" + root.col1 + "," + root.row1 + ")");
+
             overlay.open();
         }
+    }
+
+    function snapFromGeometry(g) {
+        const sx = screenRect.x;
+        const sy = screenRect.y;
+        col0 = clamp(Math.round((g.x - sx) / cellW), 0, gridCols - 1);
+        col1 = clamp(Math.round((g.x + g.width - sx) / cellW), col0 + 1, gridCols);
+        row0 = clamp(Math.round((g.y - sy) / cellH), 0, gridRows - 1);
+        row1 = clamp(Math.round((g.y + g.height - sy) / cellH), row0 + 1, gridRows);
+    }
+
+    function applyToWindow() {
+        if (!targetWindow) return;
+        const r = Qt.rect(
+            Math.round(screenRect.x + col0 * cellW),
+            Math.round(screenRect.y + row0 * cellH),
+            Math.round((col1 - col0) * cellW),
+            Math.round((row1 - row0) * cellH));
+        targetWindow.frameGeometry = r;
+    }
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    function moveTopLeft(dCol, dRow) {
+        const w = col1 - col0;
+        const h = row1 - row0;
+        col0 = clamp(col0 + dCol, 0, gridCols - w);
+        row0 = clamp(row0 + dRow, 0, gridRows - h);
+        col1 = col0 + w;
+        row1 = row0 + h;
+    }
+
+    function moveBottomRight(dCol, dRow) {
+        col1 = clamp(col1 + dCol, col0 + 1, gridCols);
+        row1 = clamp(row1 + dRow, row0 + 1, gridRows);
+    }
+
+    function isBareModifier(k) {
+        return k === Qt.Key_Shift || k === Qt.Key_Control ||
+               k === Qt.Key_Alt   || k === Qt.Key_Meta    ||
+               k === Qt.Key_AltGr || k === Qt.Key_Super_L || k === Qt.Key_Super_R;
+    }
+
+    function cancelAndClose() {
+        if (targetWindow && originalGeometry) {
+            targetWindow.frameGeometry = originalGeometry;
+        }
+        overlay.hide();
+    }
+
+    function commitAndClose() {
+        overlay.hide();
     }
 
     Window {
         id: overlay
         flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
-        width: 280
-        height: 80
+        width: 320
+        height: 96
         color: "#202020"
         visible: false
 
@@ -43,47 +129,67 @@ Item {
             focus: true
 
             Keys.onPressed: (event) => {
-                const name = keyName(event.key);
-                const mods = modString(event.modifiers);
-                lastKey.text = mods + name;
-                console.log("[grid-tiler] key=" + event.key +
-                    " name=" + name +
-                    " text='" + event.text + "'" +
-                    " modifiers=" + event.modifiers);
-                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                    overlay.hide();
+                if (root.isBareModifier(event.key)) {
                     event.accepted = true;
+                    return;
+                }
+
+                const shift = (event.modifiers & Qt.ShiftModifier) !== 0;
+
+                switch (event.key) {
+                    case Qt.Key_Left:
+                        if (shift) root.moveBottomRight(-1, 0);
+                        else       root.moveTopLeft(-1, 0);
+                        root.applyToWindow();
+                        event.accepted = true;
+                        return;
+                    case Qt.Key_Right:
+                        if (shift) root.moveBottomRight(+1, 0);
+                        else       root.moveTopLeft(+1, 0);
+                        root.applyToWindow();
+                        event.accepted = true;
+                        return;
+                    case Qt.Key_Up:
+                        if (shift) root.moveBottomRight(0, -1);
+                        else       root.moveTopLeft(0, -1);
+                        root.applyToWindow();
+                        event.accepted = true;
+                        return;
+                    case Qt.Key_Down:
+                        if (shift) root.moveBottomRight(0, +1);
+                        else       root.moveTopLeft(0, +1);
+                        root.applyToWindow();
+                        event.accepted = true;
+                        return;
+                    case Qt.Key_Return:
+                    case Qt.Key_Enter:
+                        root.commitAndClose();
+                        event.accepted = true;
+                        return;
+                    case Qt.Key_Escape:
+                        root.cancelAndClose();
+                        event.accepted = true;
+                        return;
                 }
             }
 
-            function keyName(k) {
-                switch (k) {
-                    case Qt.Key_Left:   return "Left";
-                    case Qt.Key_Right:  return "Right";
-                    case Qt.Key_Up:     return "Up";
-                    case Qt.Key_Down:   return "Down";
-                    case Qt.Key_Return: return "Return";
-                    case Qt.Key_Enter:  return "Enter";
-                    case Qt.Key_Escape: return "Escape";
-                    default:            return "key(" + k + ")";
-                }
-            }
-
-            function modString(m) {
-                let s = "";
-                if (m & Qt.ShiftModifier)   s += "Shift+";
-                if (m & Qt.ControlModifier) s += "Ctrl+";
-                if (m & Qt.AltModifier)     s += "Alt+";
-                if (m & Qt.MetaModifier)    s += "Meta+";
-                return s;
-            }
-
-            Text {
-                id: lastKey
+            Column {
                 anchors.centerIn: parent
-                color: "white"
-                font.pixelSize: 18
-                text: "Press a key (Esc/Enter to close)"
+                spacing: 4
+
+                Text {
+                    color: "white"
+                    font.pixelSize: 16
+                    font.family: "monospace"
+                    text: "(" + root.col0 + "," + root.row0 + ") – (" +
+                          root.col1 + "," + root.row1 + ")  " +
+                          (root.col1 - root.col0) + "×" + (root.row1 - root.row0)
+                }
+                Text {
+                    color: "#a0a0a0"
+                    font.pixelSize: 11
+                    text: "Arrows move • Shift+Arrows resize • Enter commit • Esc cancel"
+                }
             }
         }
     }

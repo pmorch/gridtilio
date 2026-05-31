@@ -176,12 +176,37 @@ Once focus works:
   - Shift+arrow: shift bottom-right by one cell, clamp, keep top-left.
 - `Enter` commits and closes; `Esc` restores original geometry and closes.
 
-Snapping policy decision (write down once chosen):
+Snapping policy: **snap on open** (gTile-style). Both top-left and bottom-right
+are rounded to the nearest grid cells when `Meta+Return` is pressed; the
+window is then re-laid-out before the overlay appears. Internal state is
+tracked as integer `(col0, row0, col1, row1)` so subsequent arrow presses are
+clean ±1-cell moves with no float drift.
 
-- Does the starting position snap to the nearest grid point on overlay open,
-  or stay at the window's pre-existing pixel-precise position until first
-  arrow keypress? gTile snaps immediately; you may prefer "lazy snap on
-  first move."
+**Status: Stage 2 confirmed working on Plasma 6.5.6 / Wayland.**
+
+### Reload caveat (learned the hard way)
+
+Plasma 6's KWin QQmlEngine caches compiled QML in memory once a script is
+loaded. There is **no in-session way to force a reload** of an already-loaded
+script — `kpackagetool6 -u`, toggling `<id>Enabled` in `kwinrc`, and
+`org.kde.kwin.Scripting.unloadScript` + `loadDeclarativeScript` all return
+success but the QQmlEngine keeps the original compiled code resident. Even
+clearing `~/.cache/kwin/qmlcache/*.qmlc` does not help.
+
+The only reliable way to pick up QML changes is a kwin restart, and on this
+NixOS install `systemctl --user restart plasma-kwin_wayland.service` (and by
+extension `kwin_wayland --replace`) tears down the entire user session —
+SDDM reappeared and post-login the screen stayed black, requiring a hard
+power cycle.
+
+**Practical workflow for further QML changes:**
+- Iterate on QML as much as possible without touching the live script
+  (read it carefully, dry-run logic in your head).
+- When you genuinely need to test a change, do it as part of a planned
+  logout/reboot cycle — not by trying to live-reload.
+- Or load the new version under a *different* `pluginName` (e.g. give it a
+  v2 metadata.json and install side-by-side) to bypass the engine's
+  per-name cache. Ugly but safe.
 
 ## Stage 3 — Polish
 
