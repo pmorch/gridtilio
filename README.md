@@ -37,7 +37,7 @@ windows aren't placed under them.
 ### From source (today)
 
 ```bash
-git clone <repo-url> gridtilio
+git clone https://github.com/pmorch/gridtilio.git
 cd gridtilio
 make install
 ```
@@ -55,8 +55,8 @@ Press **`Meta+Return`** on any window to use.
 Plasma's standard install flow for KWin scripts works once a
 `gridtilio.kwinscript` archive is available:
 
-1. **Build the archive** (`make build`) — or, in future, download it from
-   the [Releases page](#).
+1. **Build the archive** (`make build`) — or, once tagged, download it
+   from the [Releases page](https://github.com/pmorch/gridtilio/releases).
 2. Open **System Settings → Window Management → KWin Scripts**.
 3. Click **"Install From File…"** and select the `.kwinscript`.
 4. Tick the **GridTilio** checkbox and click **Apply**.
