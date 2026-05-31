@@ -1,0 +1,25 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Peter Marreck",
+                "Email": "pm@helloretail.com"
+            }
+        ],
+        "Category": "Utilities",
+        "Description": "gTile-style keyboard window placement on a virtual grid",
+        "EnabledByDefault": false,
+        "Icon": "preferences-desktop-virtual",
+        "Id": "grid-tiler",
+        "License": "MIT",
+        "Name": "Grid Tiler",
+        "ServiceTypes": [
+            "KWin/Script"
+        ],
+        "Version": "0.0.1"
+    },
+    "X-Plasma-API": "declarativescript",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
+}
