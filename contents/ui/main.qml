@@ -72,7 +72,11 @@ Item {
             root.targetWindow = w;
             const g = w.frameGeometry;
             root.originalGeometry = Qt.rect(g.x, g.y, g.width, g.height);
-            root.screenRect = w.output.geometry;
+            // PlacementArea is the screen minus struts (panels, docks etc.),
+            // i.e. what a maximized window would occupy. Using the full
+            // output.geometry instead would hide the window under any panel
+            // on the bottom or top of the screen.
+            root.screenRect = Workspace.clientArea(KWin.PlacementArea, w);
             root.cellW = root.screenRect.width / root.gridCols;
             root.cellH = root.screenRect.height / root.gridRows;
 
