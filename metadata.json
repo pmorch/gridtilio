@@ -3,21 +3,21 @@
     "KPlugin": {
         "Authors": [
             {
-                "Name": "Peter Marreck",
+                "Name": "Peter Valdemar Mørch",
                 "Email": "pm@helloretail.com"
             }
         ],
         "Category": "Utilities",
-        "Description": "gTile-style keyboard window placement on a virtual grid",
+        "Description": "Keyboard-driven gTile-style window placement on a virtual grid",
         "EnabledByDefault": false,
         "Icon": "preferences-desktop-virtual",
-        "Id": "grid-tiler",
+        "Id": "keygridtile",
         "License": "MIT",
-        "Name": "Grid Tiler",
+        "Name": "KeyGridTile",
         "ServiceTypes": [
             "KWin/Script"
         ],
-        "Version": "0.0.1"
+        "Version": "0.1.0"
     },
     "X-Plasma-API": "declarativescript",
     "X-Plasma-API-Minimum-Version": "6.0",

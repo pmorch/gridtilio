@@ -46,18 +46,18 @@ Item {
         easing.type: Easing.OutCubic
     }
 
-    Component.onCompleted: console.log("[grid-tiler] script loaded")
+    Component.onCompleted: console.log("[keygridtile] script loaded")
 
     ShortcutHandler {
-        name: "GridTiler: Open overlay"
-        text: "Grid Tiler: Open overlay"
+        name: "KeyGridTile: Open overlay"
+        text: "KeyGridTile: Open overlay"
         sequence: "Meta+Return"
         onActivated: {
             if (overlay.visible) return;
 
             const w = Workspace.activeWindow;
             if (!w || !w.output) {
-                console.log("[grid-tiler] no active window or output, ignoring");
+                console.log("[keygridtile] no active window or output, ignoring");
                 return;
             }
 
@@ -79,7 +79,7 @@ Item {
             root.snapFromGeometry(g);
             root.applyToWindow();
 
-            console.log("[grid-tiler] open target=" + w.resourceClass +
+            console.log("[keygridtile] open target=" + w.resourceClass +
                 " screen=" + root.screenRect.width + "x" + root.screenRect.height +
                 " cell=" + root.cellW.toFixed(1) + "x" + root.cellH.toFixed(1) +
                 " grid=(" + root.col0 + "," + root.row0 + ")-(" + root.col1 + "," + root.row1 + ")");
