@@ -12,7 +12,10 @@ without ever touching the mouse.
 
 1. Press **`Meta+Return`** on any window.
 2. A small overlay appears and grabs keyboard focus.
-3. Arrow keys move the window's **top-left** corner to the adjacent grid cell.
+3. Arrow keys move the window one cell in that direction, preserving size.
+   If the leading edge is already at the screen edge, the trailing edge
+   moves instead — so a too-wide window scrunches into the right side
+   when you keep pressing Right, instead of stalling.
 4. **`Shift`+Arrow** moves the **bottom-right** corner (i.e. resize, anchored
    at the top-left).
 5. **`Enter`** commits the new placement. **`Esc`** restores the original

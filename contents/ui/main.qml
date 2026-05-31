@@ -121,13 +121,26 @@ Item {
 
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+    // Plain-arrow move. Normally shifts both edges by d, preserving size.
+    // When the leading edge is already pinned at the screen edge, the
+    // trailing edge moves instead — the window scrunches into the corner
+    // by one cell. So pressing Right with a too-wide window keeps doing
+    // something useful instead of stalling at the right edge.
     function moveTopLeft(dCol, dRow) {
-        const w = col1 - col0;
-        const h = row1 - row0;
-        col0 = clamp(col0 + dCol, 0, gridCols - w);
-        row0 = clamp(row0 + dRow, 0, gridRows - h);
-        col1 = col0 + w;
-        row1 = row0 + h;
+        if (dCol > 0) {
+            if (col1 < gridCols)         { col0 += 1; col1 += 1; }
+            else if (col0 + 1 < col1)    { col0 += 1; }
+        } else if (dCol < 0) {
+            if (col0 > 0)                { col0 -= 1; col1 -= 1; }
+            else if (col1 - 1 > col0)    { col1 -= 1; }
+        }
+        if (dRow > 0) {
+            if (row1 < gridRows)         { row0 += 1; row1 += 1; }
+            else if (row0 + 1 < row1)    { row0 += 1; }
+        } else if (dRow < 0) {
+            if (row0 > 0)                { row0 -= 1; row1 -= 1; }
+            else if (row1 - 1 > row0)    { row1 -= 1; }
+        }
     }
 
     function moveBottomRight(dCol, dRow) {
