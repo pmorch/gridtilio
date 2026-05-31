@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Hot-reload the keygridtile QML into the running KWin session, no logout
+# Hot-reload the gridtilio QML into the running KWin session, no logout
 # needed. Copies the current QML to a uniquely-named tmp path each time so
 # the QQmlEngine sees a never-before-seen URL and recompiles — toggling
 # the installed package or unloading+reloading the same URL reuses the
@@ -18,13 +18,13 @@
 set -euo pipefail
 
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PKG_NAME="keygridtile"
+PKG_NAME="gridtilio"
 PLUGIN_NAME="${PKG_NAME}-dev"
 DST_DIR="/tmp/${PLUGIN_NAME}-$(date +%s%N)"
 
 # Qt.MetaModifier | Qt.Key_Return — must match the QML's sequence.
 KEY_META_RETURN=285212676
-SHORTCUT_NAME="KeyGridTile: Open overlay"
+SHORTCUT_NAME="GridTilio: Open overlay"
 
 # Drop any previous dev load (no-op the first time).
 dbus-send --session --print-reply --dest=org.kde.KWin /Scripting \

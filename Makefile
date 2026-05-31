@@ -1,4 +1,4 @@
-PKG_NAME := keygridtile
+PKG_NAME := gridtilio
 ARCHIVE  := $(PKG_NAME).kwinscript
 
 SOURCES  := metadata.json $(shell find contents -type f)

@@ -8,12 +8,12 @@
             }
         ],
         "Category": "Utilities",
-        "Description": "Keyboard-driven gTile-style window placement on a virtual grid",
+        "Description": "gTile-style window placement on a virtual grid",
         "EnabledByDefault": false,
         "Icon": "preferences-desktop-virtual",
-        "Id": "keygridtile",
+        "Id": "gridtilio",
         "License": "MIT",
-        "Name": "KeyGridTile",
+        "Name": "GridTilio",
         "ServiceTypes": [
             "KWin/Script"
         ],

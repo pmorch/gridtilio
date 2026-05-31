@@ -1,4 +1,4 @@
-# KeyGridTile — Development notes
+# GridTilio — Development notes
 
 This document covers everything you need to hack on the script: project
 layout, how the QML hangs together, the hot-reload workflow for iterating
@@ -9,7 +9,7 @@ top-level [README](README.md).
 ## Project layout
 
 ```
-keygridtile/
+gridtilio/
 ├── metadata.json                  # KPackage descriptor
 ├── contents/
 │   ├── code/main.js               # empty stub; required by the package format
@@ -74,13 +74,13 @@ KWin's QQmlEngine caches compiled QML in memory keyed by URL. None of the
 The trick that **does** work: load the QML from a **never-before-seen
 file URL**. The engine sees a cache miss and recompiles. `scripts/dev-reload.sh`
 implements this — it copies the current QML to a fresh
-`/tmp/keygridtile-dev-<nanos>/contents/ui/main.qml` path each invocation and
+`/tmp/gridtilio-dev-<nanos>/contents/ui/main.qml` path each invocation and
 calls `loadDeclarativeScript` on the new path.
 
 ```bash
 # Disable the installed package version first so its ShortcutHandler
 # doesn't double-register with the dev load.
-kwriteconfig6 --file kwinrc --group Plugins --key keygridtileEnabled false
+kwriteconfig6 --file kwinrc --group Plugins --key gridtilioEnabled false
 dbus-send --session --type=method_call \
   --dest=org.kde.KWin /KWin org.kde.KWin.reconfigure
 
@@ -136,14 +136,14 @@ Recovery, when picking a new (non-conflicting) shortcut after a conflict:
 
 ```bash
 # Either: delete the cached line so kglobalaccel re-reads the QML default
-sed -i '/^KeyGridTile: Open overlay=/d' ~/.config/kglobalshortcutsrc
+sed -i '/^GridTilio: Open overlay=/d' ~/.config/kglobalshortcutsrc
 
 # Or: force-set the active sequence via DBus with NoAutoloading (flags=4),
 # which makes kglobalaccel ignore the cache and accept the new keys.
 # Key code for Meta+Return = Qt.MetaModifier | Qt.Key_Return = 285212676.
 dbus-send --session --print-reply --dest=org.kde.kglobalaccel /kglobalaccel \
   org.kde.KGlobalAccel.setShortcut \
-  array:string:"kwin","KeyGridTile: Open overlay","KWin","KeyGridTile: Open overlay" \
+  array:string:"kwin","GridTilio: Open overlay","KWin","GridTilio: Open overlay" \
   array:int32:285212676 \
   uint32:4
 ```
@@ -152,7 +152,7 @@ Verify with:
 
 ```bash
 dbus-send --session --print-reply --dest=org.kde.kglobalaccel /component/kwin \
-  org.kde.kglobalaccel.Component.allShortcutInfos | grep -A8 'KeyGridTile'
+  org.kde.kglobalaccel.Component.allShortcutInfos | grep -A8 'GridTilio'
 ```
 
 The first inner array is the active sequence; the second is the default.
@@ -174,10 +174,10 @@ dbus-send --session --print-reply --dest=org.kde.KWin /Scripting \
   org.freedesktop.DBus.Introspectable.Introspect | grep '<node name'
 
 dbus-send --session --print-reply --dest=org.kde.KWin /Scripting \
-  org.kde.kwin.Scripting.isScriptLoaded string:"keygridtile"
+  org.kde.kwin.Scripting.isScriptLoaded string:"gridtilio"
 
 # What's the script's shortcut currently bound to?
 dbus-send --session --print-reply --dest=org.kde.kglobalaccel /component/kwin \
   org.kde.kglobalaccel.Component.allShortcutInfos \
-  | awk '/"KeyGridTile: Open overlay"/{flag=1; n=0} flag && n<10 {print; n++}'
+  | awk '/"GridTilio: Open overlay"/{flag=1; n=0} flag && n<10 {print; n++}'
 ```
