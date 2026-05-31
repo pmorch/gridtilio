@@ -7,6 +7,7 @@ Item {
 
     readonly property int gridCols: 8
     readonly property int gridRows: 6
+    readonly property int animDurationMs: 120
 
     property var targetWindow: null
     property var originalGeometry: null
@@ -21,6 +22,30 @@ Item {
     property int col1: 1
     property int row1: 1
 
+    // Animation state. animProgress 0 = at animFrom, 1 = at animTo.
+    property rect animFrom: Qt.rect(0, 0, 0, 0)
+    property rect animTo: Qt.rect(0, 0, 0, 0)
+    property real animProgress: 1.0
+    onAnimProgressChanged: {
+        if (!targetWindow) return;
+        const t = animProgress;
+        targetWindow.frameGeometry = Qt.rect(
+            Math.round(animFrom.x + (animTo.x - animFrom.x) * t),
+            Math.round(animFrom.y + (animTo.y - animFrom.y) * t),
+            Math.round(animFrom.width  + (animTo.width  - animFrom.width)  * t),
+            Math.round(animFrom.height + (animTo.height - animFrom.height) * t));
+    }
+
+    NumberAnimation {
+        id: moveAnim
+        target: root
+        property: "animProgress"
+        from: 0
+        to: 1
+        duration: root.animDurationMs
+        easing.type: Easing.OutCubic
+    }
+
     Component.onCompleted: console.log("[grid-tiler] script loaded")
 
     ShortcutHandler {
@@ -34,6 +59,14 @@ Item {
             if (!w || !w.output) {
                 console.log("[grid-tiler] no active window or output, ignoring");
                 return;
+            }
+
+            // If a restore animation from a prior session is mid-flight, snap to
+            // its end before capturing fresh state — otherwise we'd record an
+            // intermediate frameGeometry as the "original".
+            if (moveAnim.running) {
+                moveAnim.stop();
+                if (targetWindow) targetWindow.frameGeometry = animTo;
             }
 
             root.targetWindow = w;
@@ -66,12 +99,24 @@ Item {
 
     function applyToWindow() {
         if (!targetWindow) return;
-        const r = Qt.rect(
+        animateTo(Qt.rect(
             Math.round(screenRect.x + col0 * cellW),
             Math.round(screenRect.y + row0 * cellH),
             Math.round((col1 - col0) * cellW),
-            Math.round((row1 - row0) * cellH));
-        targetWindow.frameGeometry = r;
+            Math.round((row1 - row0) * cellH)));
+    }
+
+    // Tween frameGeometry from current to `to`. If an animation is already
+    // running, cancel it and start fresh from wherever the window is *now* —
+    // no queue, no snap-to-end-then-restart. Holding an arrow key down chains
+    // smoothly without visual hiccups.
+    function animateTo(to) {
+        if (!targetWindow) return;
+        if (moveAnim.running) moveAnim.stop();
+        animFrom = targetWindow.frameGeometry;
+        animTo = to;
+        animProgress = 0;
+        moveAnim.restart();
     }
 
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -98,7 +143,7 @@ Item {
 
     function cancelAndClose() {
         if (targetWindow && originalGeometry) {
-            targetWindow.frameGeometry = originalGeometry;
+            animateTo(originalGeometry);
         }
         overlay.hide();
     }
@@ -110,8 +155,8 @@ Item {
     Window {
         id: overlay
         flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
-        width: 320
-        height: 96
+        width: 340
+        height: 100
         color: "#202020"
         visible: false
 
@@ -175,20 +220,28 @@ Item {
 
             Column {
                 anchors.centerIn: parent
-                spacing: 4
+                spacing: 5
 
                 Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
                     color: "white"
-                    font.pixelSize: 16
-                    font.family: "monospace"
-                    text: "(" + root.col0 + "," + root.row0 + ") – (" +
-                          root.col1 + "," + root.row1 + ")  " +
-                          (root.col1 - root.col0) + "×" + (root.row1 - root.row0)
+                    font.pixelSize: 14
+                    text: "Arrows move  •  Shift+Arrows resize"
                 }
                 Text {
-                    color: "#a0a0a0"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: "#c0c0c0"
+                    font.pixelSize: 12
+                    text: "Enter commit  •  Esc cancel"
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: "#707070"
                     font.pixelSize: 11
-                    text: "Arrows move • Shift+Arrows resize • Enter commit • Esc cancel"
+                    font.family: "monospace"
+                    text: "(" + root.col0 + "," + root.row0 + ") – (" +
+                          root.col1 + "," + root.row1 + ")   " +
+                          (root.col1 - root.col0) + "×" + (root.row1 - root.row0)
                 }
             }
         }

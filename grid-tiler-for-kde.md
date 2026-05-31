@@ -184,40 +184,80 @@ clean ±1-cell moves with no float drift.
 
 **Status: Stage 2 confirmed working on Plasma 6.5.6 / Wayland.**
 
-### Reload caveat (learned the hard way)
+### Iterating on a script without logging out
 
-Plasma 6's KWin QQmlEngine caches compiled QML in memory once a script is
-loaded. There is **no in-session way to force a reload** of an already-loaded
-script — `kpackagetool6 -u`, toggling `<id>Enabled` in `kwinrc`, and
-`org.kde.kwin.Scripting.unloadScript` + `loadDeclarativeScript` all return
-success but the QQmlEngine keeps the original compiled code resident. Even
-clearing `~/.cache/kwin/qmlcache/*.qmlc` does not help.
+Toggling `Enabled` in `kwinrc`, `org.kde.kwin.Scripting.unloadScript` +
+`loadDeclarativeScript` with the same path/pluginName, and clearing
+`~/.cache/kwin/qmlcache/` all leave the previously-compiled QML resident in
+KWin's QQmlEngine — the script gets a fresh `Script` D-Bus object but the
+QML code is the old one. Don't waste time on these paths.
 
-The only reliable way to pick up QML changes is a kwin restart, and on this
-NixOS install `systemctl --user restart plasma-kwin_wayland.service` (and by
-extension `kwin_wayland --replace`) tears down the entire user session —
-SDDM reappeared and post-login the screen stayed black, requiring a hard
-power cycle.
+The documented approach (KDE TechBase, KWin scripting tutorial) is the
+**Plasma Desktop Scripting Console**:
 
-**Practical workflow for further QML changes:**
-- Iterate on QML as much as possible without touching the live script
-  (read it carefully, dry-run logic in your head).
-- When you genuinely need to test a change, do it as part of a planned
-  logout/reboot cycle — not by trying to live-reload.
-- Or load the new version under a *different* `pluginName` (e.g. give it a
-  v2 metadata.json and install side-by-side) to bypass the engine's
-  per-name cache. Ugly but safe.
+```
+plasma-interactiveconsole --kwin
+# or via KRunner: Alt+F2 → "wm console"
+```
+
+The console accepts a script and sends it to the running window manager,
+which loads and executes it directly — no logout, no packaging, no
+QQmlEngine cache hit. Each load is a fresh compile. Scripts loaded this way
+persist only for the current session.
+
+Verified empirically (2026-05-31): loading a QML script with a URL the
+engine hasn't seen before forces a fresh compile (new `.qmlc` appears in
+`~/.cache/kwin/qmlcache/`); loading the same URL again reuses the cache.
+The console exploits this.
+
+Output from `console.log()` in the script: in Plasma ≥ 5.23 it doesn't
+appear in the console window any more — read it from the journal:
+
+```
+journalctl -f QT_CATEGORY=js QT_CATEGORY=kwin_scripting _PID=$(pgrep -x kwin_wayland)
+```
+
+**Dev workflow:**
+1. Disable the installed package version in System Settings → KWin Scripts
+   (so its ShortcutHandler doesn't conflict with the test load).
+2. Open `plasma-interactiveconsole --kwin`, paste the script, run.
+3. Iterate. Each fresh paste is a clean compile.
+4. When happy, re-enable the installed package and bump its version.
+
+### Never restart KWin via systemctl on this machine
+
+Tested 2026-05-31: `systemctl --user restart plasma-kwin_wayland.service`
+brought down the entire user session, SDDM reappeared, post-login the
+screen stayed black, hard power-cycle required. `kwin_wayland --replace &`
+is the same recipe with the same risk. Don't.
 
 ## Stage 3 — Polish
 
-- Visual: small OSD showing `[col, row]  [w×h cells]` and maybe a tiny
-  preview rect.
-- Multi-monitor: use the screen that contains the target window, not
-  `currentScreen`. Recompute when window crosses monitors (probably out of
-  scope for v1).
-- Configurable grid size via the script's `config.xml` so 8×6 isn't hardcoded.
-  gTile actually ships three presets (`8x6,6x4,4x4`) cycled via a hotkey — consider that for v2.
-- Optional: hot-corner trigger via `registerScreenEdge`.
+- ✅ **Animated move/resize**: 120ms `OutCubic` tween, implemented as a
+  property animation on a 0→1 `animProgress` value with a per-step handler
+  that interpolates `targetWindow.frameGeometry`. Holding an arrow key
+  chains smoothly — on each new keypress the in-flight animation is
+  cancelled and a fresh tween starts from wherever the window currently is
+  (no queue, no snap-back). Snap-on-open and Esc-restore both animate too.
+- ✅ **OSD layout**: guide is the primary text ("Arrows move •
+  Shift+Arrows resize" / "Enter commit • Esc cancel"); grid coordinates
+  are a small grey monospace subtitle (still handy for debugging, easy to
+  remove later).
+- ✅ **Multi-monitor (basic)**: `targetWindow.output.geometry` gives the
+  rect of the screen the target is on, so the grid is sized per-display.
+  Recomputing when the window crosses monitors mid-flow is out of scope —
+  the snapshot at `Meta+Return` time is used for the whole session.
+- ✅ **Shortcut is rebindable**: `ShortcutHandler` registers with
+  `kglobalaccel`, so users can change the binding in System Settings →
+  Shortcuts → Global Shortcuts under the **KWin** component, action name
+  **"Grid Tiler: Open overlay"**. No script edit needed.
+- ⏭ **Configurable grid size**: deferred (YAGNI for v1). gTile ships
+  three presets (`8x6,6x4,4x4`) cycled via a hotkey — consider for v2.
+- ⏭ **Hot-corner trigger via `registerScreenEdge`**: deferred.
+
+**Status: Stage 3 implementation complete; ready to test via
+`plasma-interactiveconsole --kwin` (see "Iterating on a script without
+logging out" above) — no logout required.**
 
 ## Stage 4 — Optional nice-to-haves
 
